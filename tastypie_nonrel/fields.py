@@ -7,9 +7,9 @@ from tastypie.fields import (ApiField,
 from tastypie.bundle import Bundle
 from tastypie.utils import dict_strip_unicode_keys
 
-import logging
-logging.basicConfig(filename='debugAPI.log',level=logging.DEBUG)
-logging.debug('#############################')
+#import logging
+#logging.basicConfig(filename='debugAPI.log',level=logging.DEBUG)
+#logging.debug('#############################')
 
 
 class ListField(ApiField):
@@ -196,7 +196,7 @@ class ForeignKeyList(ToManyField):
         return related_resource.full_dehydrate(bundle)
         
     def dehydrate(self, bundle):
-        logging.debug('bundle : %s'%bundle.obj)
+        #logging.debug('bundle : %s'%bundle.obj)
         #1) Check limit cases
         if not bundle.obj or not bundle.obj.pk:
             if not self.null:
@@ -212,7 +212,7 @@ class ForeignKeyList(ToManyField):
         
         #2) Get foreign list
         foreignKeyList = getattr(bundle.obj, self.attribute)
-        logging.debug('foreignKeyList : %s'%foreignKeyList)
+        #logging.debug('foreignKeyList : %s'%foreignKeyList)
         for index, foreign in enumerate(foreignKeyList):
             foreign_resource = self.get_related_resource(foreign)
             foreign_bundle = Bundle(obj=foreign_resource.obj_get(id=foreign_resource.instance), request=bundle.request)
