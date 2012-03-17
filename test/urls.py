@@ -8,6 +8,8 @@ from test_app.api.resources import (
     EmbeddedListFieldTestResource,
     EmbeddedCollectionFieldTestResource,
     CustomerTestResource,
+    ForeignKeyListFieldTestResource,
+    PersonTestResource,
     )
 
 
@@ -23,6 +25,8 @@ v1_api.register(EmbeddedModelFieldTestResource())
 v1_api.register(EmbeddedListFieldTestResource())
 v1_api.register(EmbeddedCollectionFieldTestResource()),
 v1_api.register(CustomerTestResource())
+v1_api.register(ForeignKeyListFieldTestResource())
+v1_api.register(PersonTestResource())
 
 
 urlpatterns = patterns('',

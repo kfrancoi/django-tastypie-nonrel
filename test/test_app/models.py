@@ -4,6 +4,11 @@ from django.db import models
 
 from djangotoolbox.fields import ListField, DictField, EmbeddedModelField
 
+from forms import StringListField
+class BizappListField(ListField):
+    def formfield(self, **kwargs):
+        return models.Field.formfield(self, StringListField, **kwargs)
+
 class EmbeddedModelFieldTest(models.Model):
     """
         A model with embedded models
@@ -50,3 +55,6 @@ class CustomerTest(models.Model):
     """
     person          =   models.ForeignKey('PersonTest')
 
+
+class ForeignKeyListFieldTest(models.Model):
+    list            =   BizappListField(models.ForeignKey(PersonTest))

@@ -19,12 +19,14 @@ from ..models import (ListFieldTest,
                       EmbeddedListFieldTest,
                       EmbeddedCollectionFieldTest,
                       CustomerTest,
+                      ForeignKeyListFieldTest,
                     )
 from tastypie_nonrel.fields import (ListField, 
                                     DictField, 
                                     EmbeddedModelField, 
                                     EmbeddedListField,
                                     EmbeddedCollection,
+                                    ForeignKeyList,
                                     )
 
 class EmbeddedModelFieldTestResource(MongoResource):
@@ -81,6 +83,19 @@ class EmbeddedCollectionFieldTestResource(MongoResource):
         object_class        =   EmbeddedCollectionFieldTest
         queryset            =   EmbeddedCollectionFieldTest.objects.all()
         allowed_methods     =   ['get', 'post', 'put', 'delete']
+        authorization       =   Authorization()
+        authentication      =   Authentication()
+
+class ForeignKeyListFieldTestResource(MongoResource):
+    list            =   ForeignKeyList(of='test_app.api.resources.PersonTestResource',
+                                       attribute='list',
+                                       full=True,
+                                       )
+    
+    class Meta:
+        object_class        =   ForeignKeyListFieldTest
+        queryset            =   ForeignKeyListFieldTest.objects.all()
+        allow_methods       =   ['get']
         authorization       =   Authorization()
         authentication      =   Authentication()
 

@@ -7,6 +7,11 @@ from tastypie.fields import (ApiField,
 from tastypie.bundle import Bundle
 from tastypie.utils import dict_strip_unicode_keys
 
+import logging
+logging.basicConfig(filename='debugAPI.log',level=logging.DEBUG)
+logging.debug('#############################')
+
+
 class ListField(ApiField):
     """
         Represents a list of simple items - strings, ints, bools, etc. For
@@ -170,4 +175,47 @@ class EmbeddedCollection(ToManyField):
     def to_class(self):
         base = super(EmbeddedCollection, self).to_class
         return lambda: base(self._resource(), self.instance_name)
+
+class ForeignKeyList(ToManyField):
+    """
+    """
     
+    def __init__(self, of, attribute, related_name=None, default=NOT_PROVIDED, null=False, blank=False, readonly=False, full=True, unique=False, help_text=None):
+        super(ForeignKeyList, self).__init__(to=of, 
+                                                 attribute=attribute,
+                                                 related_name=related_name,
+                                                 # default=default, 
+                                                 null=null, 
+                                                 # blank=blank, 
+                                                 # readonly=readonly, 
+                                                 full=full, 
+                                                 unique=unique, 
+                                                 help_text=help_text)
+    
+    def dehydrate_related(self, bundle, related_resource):
+        return related_resource.full_dehydrate(bundle)
+        
+    def dehydrate(self, bundle):
+        logging.debug('bundle : %s'%bundle.obj)
+        #1) Check limit cases
+        if not bundle.obj or not bundle.obj.pk:
+            if not self.null:
+                raise ApiFieldError("The model '%r' does not have a primary key and can not be d in a ToMany context." % bundle.obj)
+            return []
+        if not getattr(bundle.obj, self.attribute, None):
+            if not self.null:
+                raise ApiFieldError("The model '%s' has an empty attribute '%s' and doesn't allow a null value." % (bundle.obj, self.attribute))
+            return []
+        
+        self.foreign_resources = []
+        foreign_dehydrated = []
+        
+        #2) Get foreign list
+        foreignKeyList = getattr(bundle.obj, self.attribute)
+        logging.debug('foreignKeyList : %s'%foreignKeyList)
+        for index, foreign in enumerate(foreignKeyList):
+            foreign_resource = self.get_related_resource(foreign)
+            foreign_bundle = Bundle(obj=foreign_resource.obj_get(id=foreign_resource.instance), request=bundle.request)
+            foreign_dehydrated.append(self.dehydrate_related(foreign_bundle, foreign_resource))
+        
+        return foreign_dehydrated

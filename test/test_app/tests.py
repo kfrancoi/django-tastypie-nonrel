@@ -31,7 +31,7 @@ class ListFieldTest(TestCase):
     # fixtures = ['list_field_test.json', 'dict_field_test.json']
 
     def setUp(self):
-        from django.conf import settings; settings.DEBUG = True
+        from django.conf import settings; settings.DEBUG = True 
         from models import ListFieldTest, DictFieldTest
         l = ListFieldTest.objects.create(
                                          list=[1,2,3],
@@ -337,7 +337,7 @@ class EmbededModelFieldTest(TestCase):
         ms = EmbeddedModelFieldTest.objects.all()
 
     def test_get(self):
-        request = HttpRequest()
+        #request = HttpRequest()
         resp = self.client.get('/api/v1/embeddedmodelfieldtest/',
                                content_type='application/json',
                                )
@@ -346,7 +346,8 @@ class EmbededModelFieldTest(TestCase):
         self.assertEqual(rj['objects'][0]['customer']['name'], 'andres')
 
     def test_post(self):
-        request = HttpRequest()
+        
+        #request = HttpRequest()
         post_data = '{"customer":{"name":"san"}}'
         resp = self.client.post('/api/v1/embeddedmodelfieldtest/',
                                data=post_data,
@@ -440,7 +441,7 @@ class EmbeddedCollectionFieldTestCase(TestCase):
         
 
     def test_get(self):
-        request = HttpRequest()
+        #request = HttpRequest()
         resp = self.client.get(self.url,
                                content_type='application/json',
                                )
@@ -448,4 +449,49 @@ class EmbeddedCollectionFieldTestCase(TestCase):
         rj = json.loads(resp.content)
         self.assertEqual(len(rj['objects']), 2)
         self.assertEqual(rj['objects'][0]['name'], 'andres')
+        
 
+############################
+# ForeignKeyList
+############################
+import logging
+logging.basicConfig(filename='debugTestCases.log',level=logging.DEBUG)
+logging.debug('#############################')
+
+class ForeignKeyListTestCase(TestCase):
+    def setUp(self):
+        from django.conf import settings;settings.DEBUG = True
+        from models import PersonTest, ForeignKeyListFieldTest
+        self.p1       = PersonTest.objects.create(name="Kevin")
+        self.p2       = PersonTest.objects.create(name="Gwen")
+        self.l        = ForeignKeyListFieldTest.objects.create()
+        self.l.list.append(self.p1.id)
+        self.l.save()
+        self.l.list.append(self.p2.id)
+        self.l.save()
+    
+    @property
+    def url(self):
+        r = lambda name, *args, **kwargs: reverse(name, args=args, kwargs=kwargs)
+        return r('api_dispatch_subresource_list',
+                 api_name='v1',
+                 resource_name='foreignkeylistfieldtest',
+                 pk=self.l.id,
+                 subresource_name='list')
+    
+    def test_get(self):
+        #request = HttpRequest()
+        #logging.debug("URL : %s"%self.url)
+        #resp = self.client.get(self.url, content_type='application/json')
+        resp = self.client.get('/api/v1/foreignkeylistfieldtest/', content_type='application/json')
+        
+        deserialized = json.loads(resp.content)
+        os = deserialized['objects']
+        self.assertEqual(len(os), 1)
+        
+        self.assertEqual(resp.status_code, 200)
+        logging.debug("resp Content : %s" %resp.content)
+        rj = json.loads(resp.content)
+        os = rj['objects'][0]
+        self.assertEqual(len(os['list']),2)
+        self.assertEqual(os['list'][0]['name'], 'Kevin')
