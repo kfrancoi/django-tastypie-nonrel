@@ -58,3 +58,6 @@ class CustomerTest(models.Model):
 
 class ForeignKeyListFieldTest(models.Model):
     list            =   BizappListField(models.ForeignKey(PersonTest))
+    
+    def __unicode__(self):
+        return '<ForeignKeyListFieldTest(list : %s)>'%self.list

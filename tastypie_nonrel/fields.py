@@ -108,7 +108,11 @@ class EmbeddedModelField(ToOneField):
         return super(EmbeddedModelField, self).dehydrate(obj).data
 
     def hydrate(self, bundle):
-        return super(EmbeddedModelField, self).hydrate(bundle).obj
+        value = super(ToOneField, self).hydrate(bundle)
+        if value is None:
+            return value
+
+        return self.build_related_resource(value)
 
     def build_related_resource(self, value):
         """
@@ -121,9 +125,10 @@ class EmbeddedModelField(ToOneField):
         
         # Try to hydrate the data provided.
         value = dict_strip_unicode_keys(value)
+        
         self.fk_bundle = Bundle(data=value)
             
-        return self.fk_resource.full_hydrate(self.fk_bundle)
+        return self.fk_resource.full_hydrate(self.fk_bundle).obj
 
 class EmbeddedCollection(ToManyField):
     """
@@ -179,6 +184,8 @@ class EmbeddedCollection(ToManyField):
 class ForeignKeyList(ToManyField):
     """
     """
+    is_related = False
+    is_m2m = False
     
     def __init__(self, of, attribute, related_name=None, default=NOT_PROVIDED, null=False, blank=False, readonly=False, full=True, unique=False, help_text=None):
         super(ForeignKeyList, self).__init__(to=of, 
@@ -196,7 +203,6 @@ class ForeignKeyList(ToManyField):
         return related_resource.full_dehydrate(bundle)
         
     def dehydrate(self, bundle):
-        #logging.debug('bundle : %s'%bundle.obj)
         #1) Check limit cases
         if not bundle.obj or not bundle.obj.pk:
             if not self.null:
@@ -212,10 +218,36 @@ class ForeignKeyList(ToManyField):
         
         #2) Get foreign list
         foreignKeyList = getattr(bundle.obj, self.attribute)
-        #logging.debug('foreignKeyList : %s'%foreignKeyList)
+        
         for index, foreign in enumerate(foreignKeyList):
             foreign_resource = self.get_related_resource(foreign)
+            #TO FIX : Choose the right action depending on the Full attribute
             foreign_bundle = Bundle(obj=foreign_resource.obj_get(id=foreign_resource.instance), request=bundle.request)
             foreign_dehydrated.append(self.dehydrate_related(foreign_bundle, foreign_resource))
         
         return foreign_dehydrated
+    
+    def hydrate(self, bundle):
+        hydrateList = []
+        
+        for b in self.hydrate_m2m(bundle):
+            b.obj.save()
+            hydrateList.append(b.obj.id)
+        
+        return hydrateList
+    
+    def build_related_resource(self, value, request=None, related_obj=None, related_name=None):
+        """
+        Used to ``hydrate`` the data provided. If just a URL is provided,
+        the related resource is attempted to be loaded. If a
+        dictionary-like structure is provided, a fresh resource is
+        created.
+        """
+        self.fk_resource = self.to_class()
+        
+        # Try to hydrate the data provided.
+        value = dict_strip_unicode_keys(value)
+        
+        self.fk_bundle = Bundle(data=value)
+            
+        return self.fk_resource.full_hydrate(self.fk_bundle)

@@ -127,7 +127,7 @@ class CustomerTestResource(MongoResource):
     """
         Used to test FK
     """
-    person          =   ForeignKey(to='test_app.api.resources.PersonTestResource',
+    person          =   ForeignKey(to='test_app.api.resources.PersonTestCollectionResource',
                                    attribute='person',
                                   )
     class Meta:

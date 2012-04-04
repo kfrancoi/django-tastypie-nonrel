@@ -149,11 +149,11 @@ class EmbeddedListFieldTest(TestCase):
         from models import EmbeddedListFieldTest, PersonTest
         p       = PersonTest(name="andres")
         p1      = PersonTest(name="arman")
-        l       = EmbeddedListFieldTest.objects.create()
-        l.list.append(p)
-        l.save()
-        l.list.append(p1)
-        l.save()
+        self.l       = EmbeddedListFieldTest.objects.create()
+        self.l.list.append(p)
+        self.l.save()
+        self.l.list.append(p1)
+        self.l.save()
 
     def test_get(self):
         resp = self.client.get('/api/v1/embeddedlistfieldtest/',
@@ -163,7 +163,20 @@ class EmbeddedListFieldTest(TestCase):
         deserialized = json.loads(resp.content)
         os = deserialized['objects']
         self.assertEqual(len(os), 1)
-        self.assertEqual(os[0]['list'][0]['name'], 'andres') 
+        self.assertEqual(os[0]['list'][0]['name'], 'andres')
+    
+    def test_get_nested(self):
+        """
+            This test try to access only a child resource of a parent resource
+        """
+        resp = self.client.get('/api/v1/embeddedlistfieldtest/'+self.l.id+'/list/', content_type='application/json')
+        deserialized = json.loads(resp.content)
+        os = deserialized['objects']
+        
+        self.assertEqual(len(os), 2)
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(os[0]['name'], 'andres')
+        self.assertEqual(os[1]['name'], 'arman')
 
     def test_post(self):
         post_data = '{"list":[{"name":"evan"}, {"name":"ethan"}]}'
@@ -183,6 +196,30 @@ class EmbeddedListFieldTest(TestCase):
         os = deserialized['objects']
         self.assertEqual(len(os), 2)
         self.assertEqual(os[1]['list'][0]['name'], 'evan')
+
+    def test_post_nested(self):
+        """
+            Try to post a new resource nested inside the main object
+        """
+        post_data = '{"name":"Francois"}'
+        resp = self.client.post('/api/v1/embeddedlistfieldtest/'+self.l.id+'/list/',
+                       data=post_data,
+                       content_type='application/json',
+                       )
+        self.assertEqual(resp.status_code, 201)
+        
+        #make sure it's there
+        resp = self.client.get('/api/v1/embeddedlistfieldtest/'+self.l.id+'/list/',
+                       content_type='application/json',
+                       )
+        self.assertEqual(resp.status_code, 200)
+        deserialized = json.loads(resp.content)
+        os = deserialized['objects']
+        self.assertEqual(len(os), 3)
+        self.assertEqual(os[0]['name'], 'andres')
+        self.assertEqual(os[1]['name'], 'arman')
+        self.assertEqual(os[2]['name'], 'Francois')
+            
 
     def test_put(self):
         resp = self.client.get('/api/v1/embeddedlistfieldtest/',
@@ -331,7 +368,7 @@ class EmbededModelFieldTest(TestCase):
     def setUp(self):
         from django.conf import settings; settings.DEBUG = True
         from models import PersonTest, EmbeddedModelFieldTest
-        m = EmbeddedModelFieldTest.objects.create(
+        self.m = EmbeddedModelFieldTest.objects.create(
                            customer=PersonTest(name="andres"),
                                                  )
         ms = EmbeddedModelFieldTest.objects.all()
@@ -344,6 +381,17 @@ class EmbededModelFieldTest(TestCase):
         self.assertEqual(resp.status_code, 200)
         rj = json.loads(resp.content)
         self.assertEqual(rj['objects'][0]['customer']['name'], 'andres')
+
+    def test_get_nested(self):
+        """
+            This test try to access only a child resource of a parent resource
+        """
+        resp = self.client.get('/api/v1/embeddedmodelfieldtest/'+self.m.id+'/customer/', content_type='application/json')
+        deserialized = json.loads(resp.content)
+        os = deserialized['objects']
+        
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(os['name'], 'andres')
 
     def test_post(self):
         
@@ -367,26 +415,35 @@ class EmbededModelFieldTest(TestCase):
         resp = self.client.get('/api/v1/embeddedmodelfieldtest/',
                                content_type='application/json',
                                )
-
+        
+        logging.debug('[TEST PUT] Object init : %s'%resp.content)
+        
         deserialized = json.loads(resp.content)
         p = deserialized['objects'][0]
         p['customer']['name'] = "philip"
         put_data = json.dumps(p)
-
+        
+        logging.debug('[TEST PUT] Put data : %s'%put_data)
+        logging.debug('[TEST PUT] Location : %s'%p['resource_uri'])
+        
         location = p['resource_uri']
         resp = self.client.put(location,
                                data=put_data,
                                content_type='application/json',
                               )
         self.assertEquals(resp.status_code, 204)
-
+        
         resp = self.client.get(location,
                                content_type='application/json',
                                )
+        
+        logging.debug('[TEST PUT] GET PUTTED DATA : %s'%resp.content)
+        logging.debug('[TEST PUT] GET PUTTED DATA (deserialized): %s'%json.loads(resp.content))
+        logging.debug('[TEST PUT] p : %s'%p)
         deserialized = json.loads(resp.content)
 
-        self.assertEqual(deserialized,
-                         p)
+        self.assertEqual(deserialized['customer']['name'],
+                         p['customer']['name'])
 
         resp = self.client.get('/api/v1/embeddedmodelfieldtest/',
                                content_type='application/json',
@@ -469,6 +526,8 @@ class ForeignKeyListTestCase(TestCase):
         self.l.save()
         self.l.list.append(self.p2.id)
         self.l.save()
+        
+        
     
     @property
     def url(self):
@@ -495,3 +554,88 @@ class ForeignKeyListTestCase(TestCase):
         os = rj['objects'][0]
         self.assertEqual(len(os['list']),2)
         self.assertEqual(os['list'][0]['name'], 'Kevin')
+    
+    def test_get_nested(self):
+        """
+            This test try to access only a child resource of a parent resource
+        """
+        resp = self.client.get('/api/v1/foreignkeylistfieldtest/'+self.l.id+'/list/', content_type='application/json')
+        deserialized = json.loads(resp.content)
+        os = deserialized['objects']
+        
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(os), 2)
+        self.assertEqual(os[0]['name'], 'Kevin')
+        self.assertEqual(os[1]['name'], 'Gwen')
+    
+    def test_post_new(self):
+        logging.debug("Start POST test")
+        #post_data = '{"list":["/api/v1/persontest/'+self.p1.id+'"]}'
+        post_data = '{"list":[{"name":"nivek"},{"name":"newg"}]}'
+        resp = self.client.post('/api/v1/foreignkeylistfieldtest/',
+                               data=post_data,
+                               content_type='application/json',
+                               )
+        logging.debug("Response from POST : %s"%resp)
+        self.assertEqual(resp.status_code, 201)
+        
+        # make sure it's there
+        #1) Get the newly create resource uri
+        resp = self.client.get('/api/v1/foreignkeylistfieldtest/',
+                               content_type='application/json',
+                               )
+        self.assertEqual(resp.status_code, 200)
+        deserialized = json.loads(resp.content)
+        self.assertEqual(len(deserialized['objects']), 2)
+        new_uri = deserialized['objects'][1]['resource_uri']
+        resp = self.client.get(new_uri,
+                       content_type='application/json',
+                       )
+        self.assertEqual(resp.status_code, 200)
+        #2) Check it correspond to the data added
+        deserialized = json.loads(resp.content)
+        self.assertEqual(deserialized['list'][0]['name'], 'nivek')
+        self.assertEqual(deserialized['list'][1]['name'], 'newg')
+    
+    def test_post_existing(self):
+        #Add related resource already existing somewhere in the db
+        #TO FIX!
+        post_data = '{"list":[{"name":"Kevin"},{"name":"Gwen"}]}'
+        resp = self.client.post('/api/v1/foreignkeylistfieldtest/',
+                               data=post_data,
+                               content_type='application/json',
+                               )
+        self.assertEqual(resp.status_code, 201)
+        
+        # make sure it's there
+        resp = self.client.get('/api/v1/foreignkeylistfieldtest/',
+                               content_type='application/json',
+                               )
+        self.assertEqual(resp.status_code, 200)
+        deserialized = json.loads(resp.content)
+        self.assertEqual(len(deserialized['objects']), 2)
+        self.assertEqual(deserialized['objects'][1]['list'][0], self.p1.id)
+        self.assertEqual(deserialized['objects'][1]['list'][1], self.p2.id)
+    
+    def test_post_nested(self):
+        """
+            Try to post a new resource nested inside the main object
+        """
+        post_data = '{"name":"Francois"}'
+        resp = self.client.post('/api/v1/foreignkeylistfieldtest/'+self.l.id+'/list/',
+                       data=post_data,
+                       content_type='application/json',
+                       )
+        self.assertEqual(resp.status_code, 201)
+        
+        #make sure it's there
+        resp = self.client.get('/api/v1/foreignkeylistfieldtest/'+self.l.id+'/list/',
+                       content_type='application/json',
+                       )
+        self.assertEqual(resp.status_code, 200)
+        deserialized = json.loads(resp.content)
+        os = deserialized['objects']
+        self.assertEqual(len(os), 3)
+        self.assertEqual(os[0]['name'], 'Kevin')
+        self.assertEqual(os[1]['name'], 'Gwen')
+        self.assertEqual(os[2]['name'], 'Francois')
